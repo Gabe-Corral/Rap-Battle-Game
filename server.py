@@ -13,6 +13,7 @@ class Server:
         self.clients = []
 
         self.players = {}
+        self.player_raps = {}
         self.nickname_postion_x = 0
         self.nickname_postion_y = 0
         self.message_postion_y = 0
@@ -75,6 +76,8 @@ class Server:
                 self.add_player(response)
             elif response.startswith("message: "):
                 self.display_message(response, connection)
+            elif response.startswith("verse: "):
+                self.append_new_verse(response)
 
         connection.close()
 
@@ -91,6 +94,7 @@ class Server:
     def add_player(self, player):
         new_player = player.split("nickname: ")[1]
         self.players[new_player] = 5
+        self.player_raps[new_player] = []
         tk.Label(self.frame_two, text=new_player).place(
         x=self.nickname_postion_x, y=self.nickname_postion_y)
         self.nickname_postion_y += 20
@@ -109,6 +113,14 @@ class Server:
         message = input("message: ")
         connection.send(message.encode())
         connection.recv(1024)
+
+    def append_new_verse(self, verse):
+        new_verse = verse.split("verse: ")[1]
+        verse_arr = new_verse.split(" ")
+        player_name = verse_arr[0]
+        verse_arr.pop(0)
+        new_verse = " ".join(verse_arr)
+        self.player_raps[player_name].append(new_verse)
 
 
 if __name__=="__main__":

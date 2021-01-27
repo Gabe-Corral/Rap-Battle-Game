@@ -25,7 +25,7 @@ class Client:
 
         #message box
         self.wrapper_one = tk.LabelFrame(self.root)
-        self.canvas = tk.Canvas(self.wrapper_one, height=100, width=100)
+        self.canvas = tk.Canvas(self.wrapper_one, height=100, width=600)
         self.canvas.pack(side=tk.LEFT)
         self.y_scroll = tk.Scrollbar(self.wrapper_one, orient="vertical",
         command=self.canvas.yview)
@@ -35,7 +35,7 @@ class Client:
         self.canvas.bind("<Configure>",
         lambda e: self.canvas.configure(scrollregion = self.canvas.bbox('all')))
         self.canvas.create_window((0, 0), window=self.frame_one, anchor="nw",
-        height=100, width=900)
+        height=500, width=600)
         self.wrapper_one.pack(fill="x", side="bottom")
 
         self.nickname_input = tk.Entry(self.root)
@@ -71,7 +71,7 @@ class Client:
             if response.startswith("message: "):
                 self.add_to_message_box(response)
             elif response == "Ready!":
-                self.ready_for_battles()
+                self.show_first_prompt()
 
 
         self.ClientMultiSocket.close()
@@ -99,16 +99,34 @@ class Client:
         tk.Label(self.frame_one, text=message).place(x=0, y=self.message_postion_y)
         self.message_postion_y += 20
 
-    def ready_for_battles(self):
+    def show_first_prompt(self):
         self.waiting_label.destroy()
         self.directions_label = tk.Label(self.root, text='Finish this sentence.')
         self.directions_label.pack()
 
         self.first_prompt = tk.Label(self.root, text="Something to rap about ____")
         self.first_prompt.pack()
+
         self.first_entry = tk.Entry(self.root)
         self.first_entry.pack()
 
+        self.confirm_button = tk.Button(self.root, text="Confirm",
+        command=self.follow_up_verse)
+        self.confirm_button.pack()
+
+    def follow_up_verse(self):
+        verse = "verse: " + self.nickname + " " + self.first_entry.get()
+        self.ClientMultiSocket.send(str.encode(verse))
+
+        self.directions_label.destroy()
+        self.first_prompt.destroy()
+        self.first_entry.destroy()
+        self.confirm_button.destroy()
+
+        self.directions_label = tk.Label(self.root, text="Follow that up.")
+        self.directions_label.pack()
+        self.first_prompt = tk.Entry(self.root)
+        self.first_prompt.pack()
         self.confirm_button = tk.Button(self.root, text="Confirm")
         self.confirm_button.pack()
 
