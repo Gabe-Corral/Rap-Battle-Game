@@ -3,6 +3,9 @@ import os
 from _thread import *
 import threading
 import tkinter as tk
+from text_to_speech import TextToSpeech
+import vlc
+import time
 
 class Server:
 
@@ -12,7 +15,8 @@ class Server:
         self.port = 2004
         self.clients = []
 
-        self.players = {}
+        self.player_scores = {}
+        self.players = []
         self.player_raps = {}
         self.nickname_postion_x = 0
         self.nickname_postion_y = 0
@@ -75,7 +79,7 @@ class Server:
             if response.startswith("nickname: "):
                 self.add_player(response)
             elif response.startswith("message: "):
-                self.display_message(response, connection)
+                self.send_message_to_clients(response)
             elif response.startswith("verse: "):
                 self.append_new_verse(response)
 
@@ -93,21 +97,26 @@ class Server:
 
     def add_player(self, player):
         new_player = player.split("nickname: ")[1]
-        self.players[new_player] = 5
+        self.player_scores[new_player] = 5
         self.player_raps[new_player] = []
+        self.players.append(new_player)
         tk.Label(self.frame_two, text=new_player).place(
         x=self.nickname_postion_x, y=self.nickname_postion_y)
         self.nickname_postion_y += 20
 
-    def display_message(self, msg, connection):
+    def send_message_to_clients(self, msg):
         if len(self.players) > 1:
             for client in self.clients:
                 client.sendall(str.encode(msg))
 
     def start_game(self):
+        self.start_button.destroy()
         if len(self.players) > 1:
             for client in self.clients:
                 client.sendall(str.encode("Ready!"))
+        self.ready_button = tk.Button(self.root, text="Ready",
+        command=self.begin_battle)
+        self.ready_button.pack()
 
     def message_clients(self, connection):
         message = input("message: ")
@@ -121,6 +130,77 @@ class Server:
         verse_arr.pop(0)
         new_verse = " ".join(verse_arr)
         self.player_raps[player_name].append(new_verse)
+
+    def begin_battle(self):
+        self.ready_button.destroy()
+
+        self.player_one = self.players[0]
+        self.player_two = self.players[1]
+
+        self.verses_label = tk.Label(self.root, text=self.player_one + " " + "VS."
+        + " " + self.player_two)
+        self.verses_label.pack()
+
+        self.begin_button = tk.Button(self.root, text="Begin Battle",
+        command=self.display_rap)
+        self.begin_button.pack()
+
+    def display_rap(self, player="None"):
+
+        if player == "None":
+            player = self.player_one
+            self.current_player = player
+            self.verses_label.destroy()
+            self.begin_button.destroy()
+            vote = False
+        else:
+            self.current_player = player
+            vote = True
+
+        self.player_label = tk.Label(self.root, text=player)
+        self.player_label.pack()
+
+        for i in self.player_raps[player]:
+            label = tk.Label(self.root, text=i)
+            label.pack()
+
+        if vote:
+            self.next_button = tk.Button(self.root, text="Start Vote",
+            command=lambda: self.start_next_rap(next=False))
+            self.next_button.pack()
+        elif vote == False:
+            self.next_button = tk.Button(self.root, text="Next",
+            command=self.start_next_rap)
+            self.next_button.pack()
+
+        self.player_label.after(2, self.start_rap)
+
+    def start_rap(self):
+        media = vlc.MediaPlayer("assets/beat.mp3")
+        media.play()
+        media.set_time(20000)
+        for i in self.player_raps[self.current_player]:
+            TextToSpeech(i)
+        media.stop()
+
+    def start_next_rap(self, next=True):
+        children = self.root.winfo_children()
+        for child in children:
+            if str(child).startswith(".!label") and str(child) != ".!labelframe":
+                child.destroy()
+            elif str(child).startswith(".!button"):
+                child.destroy()
+        if next:
+            self.display_rap(player=self.player_two)
+        else:
+            self.vote()
+
+    def vote(self):
+        vote_players = "vote: " + self.player_one + " " + self.player_two
+        self.send_message_to_clients(vote_players)
+
+    def handing_votes(self):
+        pass
 
 
 if __name__=="__main__":

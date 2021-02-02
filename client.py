@@ -2,7 +2,7 @@ import socket
 import threading
 import tkinter as tk
 import json
-
+import random
 
 class Client:
 
@@ -12,6 +12,7 @@ class Client:
         self.port = 2004
         self.nickname = ""
         self.message_postion_y = 0
+        self.round = 1
 
         self.thread_one = threading.Thread(target=self.start_gui)
         self.thread_one.start()
@@ -40,7 +41,7 @@ class Client:
 
         self.nickname_input = tk.Entry(self.root)
         self.nickname_input.pack()
-        self.confirm = tk.Button(self.root, text="confirm",
+        self.confirm = tk.Button(self.root, text="Join",
         command=self.join_by_nickname)
         self.confirm.pack()
 
@@ -71,7 +72,10 @@ class Client:
             if response.startswith("message: "):
                 self.add_to_message_box(response)
             elif response == "Ready!":
+                self.waiting_label.destroy()
                 self.show_first_prompt()
+            elif response.startswith("vote: "):
+                self.create_vote(response)
 
 
         self.ClientMultiSocket.close()
@@ -100,35 +104,64 @@ class Client:
         self.message_postion_y += 20
 
     def show_first_prompt(self):
-        self.waiting_label.destroy()
         self.directions_label = tk.Label(self.root, text='Finish this sentence.')
         self.directions_label.pack()
 
-        self.first_prompt = tk.Label(self.root, text="Something to rap about ____")
+        json_file = open("prompts.json", "r")
+        self.data = json.load(json_file)
+        new_prompt = random.choice(self.data["first_prompts"])
+
+        self.first_prompt = tk.Label(self.root, text=new_prompt + "...")
         self.first_prompt.pack()
 
-        self.first_entry = tk.Entry(self.root)
+        self.first_entry = tk.Entry(self.root, width=100)
         self.first_entry.pack()
 
         self.confirm_button = tk.Button(self.root, text="Confirm",
-        command=self.follow_up_verse)
+        command=lambda:self.follow_up_verse(new_prompt))
         self.confirm_button.pack()
 
-    def follow_up_verse(self):
-        verse = "verse: " + self.nickname + " " + self.first_entry.get()
+    def follow_up_verse(self, last_prompt):
+        self.first_prompt.destroy()
+
+        verse = "verse: " + self.nickname + " " + last_prompt + " " + self.first_entry.get()
         self.ClientMultiSocket.send(str.encode(verse))
 
-        self.directions_label.destroy()
-        self.first_prompt.destroy()
-        self.first_entry.destroy()
-        self.confirm_button.destroy()
+        self.delete_prompts()
 
         self.directions_label = tk.Label(self.root, text="Follow that up.")
         self.directions_label.pack()
-        self.first_prompt = tk.Entry(self.root)
-        self.first_prompt.pack()
-        self.confirm_button = tk.Button(self.root, text="Confirm")
+
+        self.first_entry = tk.Entry(self.root, width=100)
+        self.first_entry.pack()
+
+        self.confirm_button = tk.Button(self.root, text="Confirm",
+        command=self.send_verse)
         self.confirm_button.pack()
+
+    def send_verse(self):
+        self.round += 1
+        verse = "verse: " + self.nickname + " " + self.first_entry.get()
+        self.ClientMultiSocket.send(str.encode(verse))
+        self.delete_prompts()
+
+        if self.round == 2:
+            self.show_first_prompt()
+
+    def delete_prompts(self):
+        self.directions_label.destroy()
+        self.first_entry.destroy()
+        self.confirm_button.destroy()
+
+    def create_vote(self, vote):
+        players = vote.split("vote: ")[1]
+        player_one = players.split(" ")[0]
+        player_two = players.split(" ")[1]
+
+        self.player_one_vote = tk.Button(self.root, text=player_one)
+        self.player_one_vote.pack()
+        self.player_two_vote = tk.Button(self.root, text=player_two)
+        self.player_two_vote.pack()
 
 if __name__=="__main__":
     client = Client()
