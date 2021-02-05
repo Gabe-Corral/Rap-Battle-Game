@@ -18,6 +18,12 @@ class Server:
         self.player_scores = {}
         self.players = []
         self.player_raps = {}
+        self.player_pairs = []
+        self.current_pair = 0
+        self.current_pair_index = 0
+        self.create_new_pairs = True
+        self.round = 1
+        self.vote_count = 0
         self.nickname_postion_x = 0
         self.nickname_postion_y = 0
         self.message_postion_y = 0
@@ -82,6 +88,8 @@ class Server:
                 self.send_message_to_clients(response)
             elif response.startswith("verse: "):
                 self.append_new_verse(response)
+            elif response.startswith("player_vote: "):
+                self.handle_votes(response)
 
         connection.close()
 
@@ -110,7 +118,12 @@ class Server:
                 client.sendall(str.encode(msg))
 
     def start_game(self):
-        self.start_button.destroy()
+        self.current_pair = 0
+        self.create_new_pairs = True
+
+        if self.round == 1:
+            self.start_button.destroy()
+
         if len(self.players) > 1:
             for client in self.clients:
                 client.sendall(str.encode("Ready!"))
@@ -132,10 +145,13 @@ class Server:
         self.player_raps[player_name].append(new_verse)
 
     def begin_battle(self):
-        self.ready_button.destroy()
+        if self.create_new_pairs == True:
+            self.ready_button.destroy()
+            self.create_pairs()
+            self.create_new_pair = False
 
-        self.player_one = self.players[0]
-        self.player_two = self.players[1]
+        self.player_one = self.player_pairs[self.current_pair][0]
+        self.player_two = self.player_pairs[self.current_pair][1]
 
         self.verses_label = tk.Label(self.root, text=self.player_one + " " + "VS."
         + " " + self.player_two)
@@ -199,9 +215,64 @@ class Server:
         vote_players = "vote: " + self.player_one + " " + self.player_two
         self.send_message_to_clients(vote_players)
 
-    def handing_votes(self):
-        pass
+    def handle_votes(self, vote):
+        player_vote = vote.split("player_vote: ")[1]
+        if player_vote == self.player_one:
+            self.vote_count += 1
+            self.player_scores[player_vote] += 1
+            self.player_scores[self.player_two] -= 1
+        elif player_vote == self.player_two:
+            self.vote_count += 1
+            self.player_scores[player_vote] += 1
+            self.player_scores[self.player_one] -= 1
 
+        self.player_raps[self.player_one] = []
+        self.player_raps[self.player_two] = []
+
+        if len(self.players) >= 4 and self.vote_count == len(self.players):
+            self.vote_count = 0
+            self.current_pair += 1
+            self.round += 1
+            if self.current_pair == 2:
+                self.start_game()
+            else:
+                self.create_new_pairs = False
+                self.begin_battle()
+        elif len(self.players) == 2 and self.vote_count == len(self.players):
+            self.vote_count = 0
+            self.round += 1
+            self.start_game()
+
+    def create_pairs(self):
+        if len(self.player_pairs) == 0:
+            self.sort_pairs()
+        else:
+            self.sort_by_leaders()
+            self.sort_pairs()
+
+    def sort_pairs(self):
+        index = 0
+        self.player_pairs = []
+
+        for i in range(len(self.players)):
+            if i + 1 < len(self.players) and len(self.player_pairs) == 0:
+                pair = (self.players[i], self.players[i+1])
+                self.player_pairs.append(pair)
+            elif i + 1 < len(self.players) and self.players[i] != self.player_pairs[index][1]:
+                pair = (self.players[i], self.players[i+1])
+                self.player_pairs.append(pair)
+                index += 1
+            elif i == len(self.players)-1 and len(self.players)%2 != 0:
+                self.player_pairs.append(self.players[i])
+
+        print(self.player_pairs)
+
+    def sort_by_leaders(self):
+        self.players = []
+        self.player_scores = {key: value for key, value in sorted(self.player_scores.items(), key=lambda item: item[1])}
+
+        for k in self.player_scores.keys():
+            self.players.append(k)
 
 if __name__=="__main__":
     server = Server()

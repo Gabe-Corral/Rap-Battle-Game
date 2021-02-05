@@ -60,11 +60,7 @@ class Client:
         except socket.error as e:
             print(str(e))
 
-        #res = self.ClientMultiSocket.recv(1024)
         while True:
-            #Input = input('Hey there: ')
-            #self.ClientMultiSocket.send(str.encode(Input))
-            #res = self.ClientMultiSocket.recv(1024)
 
             message = self.ClientMultiSocket.recv(1024)
             response = message.decode('utf-8')
@@ -154,14 +150,23 @@ class Client:
         self.confirm_button.destroy()
 
     def create_vote(self, vote):
-        players = vote.split("vote: ")[1]
-        player_one = players.split(" ")[0]
-        player_two = players.split(" ")[1]
+        self.round = 1
+        players = vote.split("vote: ")[1].split(" ")
+        player_one = players[0]
+        player_two = players[1]
 
-        self.player_one_vote = tk.Button(self.root, text=player_one)
+        self.player_one_vote = tk.Button(self.root, text=player_one,
+        command=lambda: self.submit_vote(player_one))
         self.player_one_vote.pack()
-        self.player_two_vote = tk.Button(self.root, text=player_two)
+        self.player_two_vote = tk.Button(self.root, text=player_two,
+        command=lambda: self.submit_vote(player_two))
         self.player_two_vote.pack()
+
+    def submit_vote(self, player):
+        vote = "player_vote: " + player
+        self.ClientMultiSocket.send(str.encode(vote))
+        self.player_one_vote.destroy()
+        self.player_two_vote.destroy()
 
 if __name__=="__main__":
     client = Client()
