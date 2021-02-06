@@ -90,6 +90,8 @@ class Server:
                 self.append_new_verse(response)
             elif response.startswith("player_vote: "):
                 self.handle_votes(response)
+                msg_vote = response.split("player_vote: ")[1]
+                self.send_message_to_clients("message: " + msg_vote + " " + "got a vote.")
 
         connection.close()
 
@@ -105,7 +107,7 @@ class Server:
 
     def add_player(self, player):
         new_player = player.split("nickname: ")[1]
-        self.player_scores[new_player] = 5
+        self.player_scores[new_player] = 4
         self.player_raps[new_player] = []
         self.players.append(new_player)
         tk.Label(self.frame_two, text=new_player).place(
@@ -229,24 +231,29 @@ class Server:
         self.player_raps[self.player_one] = []
         self.player_raps[self.player_two] = []
 
-        if len(self.players) >= 4 and self.vote_count == len(self.players):
+        if len(self.players) == 4 and self.vote_count == len(self.players) - 2:
             self.vote_count = 0
             self.current_pair += 1
             self.round += 1
+            self.remove_losers()
+            self.winner()
             if self.current_pair == 2:
                 self.start_game()
             else:
                 self.create_new_pairs = False
                 self.begin_battle()
-        elif len(self.players) == 2 and self.vote_count == len(self.players):
+        elif len(self.players) <= 3 and self.vote_count == len(self.players) - 2:
             self.vote_count = 0
             self.round += 1
+            self.remove_losers()
+            self.winner()
             self.start_game()
 
     def create_pairs(self):
         if len(self.player_pairs) == 0:
             self.sort_pairs()
         else:
+            #self.remove_losers()
             self.sort_by_leaders()
             self.sort_pairs()
 
@@ -262,10 +269,10 @@ class Server:
                 pair = (self.players[i], self.players[i+1])
                 self.player_pairs.append(pair)
                 index += 1
-            elif i == len(self.players)-1 and len(self.players)%2 != 0:
-                self.player_pairs.append(self.players[i])
+            #elif i == len(self.players)-1 and len(self.players)%2 != 0:
+            #    self.player_pairs.append(self.players[i])
 
-        print(self.player_pairs)
+        print(self.player_scores, self.players)
 
     def sort_by_leaders(self):
         self.players = []
@@ -273,6 +280,19 @@ class Server:
 
         for k in self.player_scores.keys():
             self.players.append(k)
+
+    def remove_losers(self):
+        keys = [k for k, v in self.player_scores.items() if v <= 0]
+        for i in keys:
+            del self.player_scores[i]
+            self.players.remove(i)
+            self.send_message_to_clients("new_loser: " + i)
+
+    def winner(self):
+        if len(self.players) == 1:
+            media = vlc.MediaPlayer("assets/you-win.mp3")
+            self.winner_label = tk.Label(self.root, text="Congratulations" + self.players[0])
+            self.winner_label.pack()
 
 if __name__=="__main__":
     server = Server()
