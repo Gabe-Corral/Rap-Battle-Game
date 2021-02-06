@@ -11,7 +11,7 @@ class Server:
 
     def __init__(self):
         self.ServerSideSocket = socket.socket()
-        self.host = '127.0.0.1'
+        self.host = '192.168.0.108'
         self.port = 2004
         self.clients = []
 
@@ -204,10 +204,12 @@ class Server:
     def start_next_rap(self, next=True):
         children = self.root.winfo_children()
         for child in children:
+            print(str(child))
             if str(child).startswith(".!label") and str(child) != ".!labelframe":
                 child.destroy()
             elif str(child).startswith(".!button"):
                 child.destroy()
+
         if next:
             self.display_rap(player=self.player_two)
         else:
