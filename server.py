@@ -19,6 +19,7 @@ class Server:
         self.players = []
         self.player_raps = {}
         self.player_pairs = []
+        self.player_gifs = {}
         self.current_pair = 0
         self.current_pair_index = 0
         self.create_new_pairs = True
@@ -27,6 +28,7 @@ class Server:
         self.nickname_postion_x = 0
         self.nickname_postion_y = 0
         self.message_postion_y = 0
+        self.total_rounds = 0
 
         self.thread_one = threading.Thread(target=self.start_gui)
         self.thread_one.start()
@@ -92,6 +94,11 @@ class Server:
                 self.handle_votes(response)
                 msg_vote = response.split("player_vote: ")[1]
                 self.send_message_to_clients("message: " + msg_vote + " " + "got a vote.")
+            elif response.startswith("gif: "):
+                res = response.split("gif: ")[1].split(" ")
+                filename = res[0]
+                player = res[1]
+                self.set_user_gif(player, filename)
 
         connection.close()
 
@@ -107,10 +114,10 @@ class Server:
 
     def add_player(self, player):
         new_player = player.split("nickname: ")[1]
-        self.player_scores[new_player] = 4
+        self.player_scores[new_player] = 0
         self.player_raps[new_player] = []
         self.players.append(new_player)
-        tk.Label(self.frame_two, text=new_player).place(
+        tk.Label(self.frame_two, text=new_player + " 5").place(
         x=self.nickname_postion_x, y=self.nickname_postion_y)
         self.nickname_postion_y += 20
 
@@ -120,18 +127,23 @@ class Server:
                 client.sendall(str.encode(msg))
 
     def start_game(self):
-        self.current_pair = 0
-        self.create_new_pairs = True
+        if self.total_rounds == 3:
+            self.sort_by_leaders()
+            self.winner()
+        else:
+            self.clear_player_raps()
+            self.current_pair = 0
+            self.create_new_pairs = True
 
-        if self.round == 1:
-            self.start_button.destroy()
+            if self.round == 1:
+                self.start_button.destroy()
 
-        if len(self.players) > 1:
-            for client in self.clients:
-                client.sendall(str.encode("Ready!"))
-        self.ready_button = tk.Button(self.root, text="Ready",
-        command=self.begin_battle)
-        self.ready_button.pack()
+            if len(self.players) > 1:
+                for client in self.clients:
+                    client.sendall(str.encode("Ready!"))
+            self.ready_button = tk.Button(self.root, text="Ready",
+            command=self.begin_battle)
+            self.ready_button.pack()
 
     def message_clients(self, connection):
         message = input("message: ")
@@ -191,7 +203,7 @@ class Server:
             command=self.start_next_rap)
             self.next_button.pack()
 
-        self.player_label.after(2, self.start_rap)
+        self.player_label.after(1000, self.start_rap)
 
     def start_rap(self):
         media = vlc.MediaPlayer("assets/beat.mp3")
@@ -204,7 +216,6 @@ class Server:
     def start_next_rap(self, next=True):
         children = self.root.winfo_children()
         for child in children:
-            print(str(child))
             if str(child).startswith(".!label") and str(child) != ".!labelframe":
                 child.destroy()
             elif str(child).startswith(".!button"):
@@ -221,41 +232,26 @@ class Server:
 
     def handle_votes(self, vote):
         player_vote = vote.split("player_vote: ")[1]
-        if player_vote == self.player_one:
-            self.vote_count += 1
-            self.player_scores[player_vote] += 1
-            self.player_scores[self.player_two] -= 1
-        elif player_vote == self.player_two:
-            self.vote_count += 1
-            self.player_scores[player_vote] += 1
-            self.player_scores[self.player_one] -= 1
-
-        self.player_raps[self.player_one] = []
-        self.player_raps[self.player_two] = []
+        self.player_scores[player_vote] += 1
+        self.vote_count += 1
 
         if len(self.players) == 4 and self.vote_count == len(self.players) - 2:
             self.vote_count = 0
             self.current_pair += 1
             self.round += 1
-            self.remove_losers()
-            self.winner()
             if self.current_pair == 2:
+                self.total_rounds += 1
                 self.start_game()
             else:
                 self.create_new_pairs = False
                 self.begin_battle()
-        elif len(self.players) <= 3 and self.vote_count == len(self.players) - 2:
-            self.vote_count = 0
-            self.round += 1
-            self.remove_losers()
-            self.winner()
-            self.start_game()
+
+        self.update_player_scores()
 
     def create_pairs(self):
         if len(self.player_pairs) == 0:
             self.sort_pairs()
         else:
-            #self.remove_losers()
             self.sort_by_leaders()
             self.sort_pairs()
 
@@ -274,7 +270,7 @@ class Server:
             #elif i == len(self.players)-1 and len(self.players)%2 != 0:
             #    self.player_pairs.append(self.players[i])
 
-        print(self.player_scores, self.players)
+        print(self.player_scores, self.player_pairs )
 
     def sort_by_leaders(self):
         self.players = []
@@ -283,18 +279,25 @@ class Server:
         for k in self.player_scores.keys():
             self.players.append(k)
 
-    def remove_losers(self):
-        keys = [k for k, v in self.player_scores.items() if v <= 0]
-        for i in keys:
-            del self.player_scores[i]
-            self.players.remove(i)
-            self.send_message_to_clients("new_loser: " + i)
+    def set_user_gif(self, player, gif):
+        self.player_gifs[player] = gif
 
     def winner(self):
-        if len(self.players) == 1:
-            media = vlc.MediaPlayer("assets/you-win.mp3")
-            self.winner_label = tk.Label(self.root, text="Congratulations" + self.players[0])
-            self.winner_label.pack()
+        media = vlc.MediaPlayer("assets/you-win.mp3")
+        media.play()
+        self.winner_label = tk.Label(self.root, text="Congratulations" + " " + self.players[-1])
+        self.winner_label.pack()
+
+    def update_player_scores(self):
+        children = self.frame_two.winfo_children()
+        for child in children:
+            player = child["text"].split(" ")[0]
+            new_score = self.player_scores[player]
+            child.configure(text=player + " " + str(new_score))
+
+    def clear_player_raps(self):
+        for player in self.players:
+            self.player_raps[player] = []
 
 if __name__=="__main__":
     server = Server()

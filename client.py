@@ -9,7 +9,7 @@ import os
 
 class Client:
 
-    def __init__(self, ip_address):
+    def __init__(self, ip_address='192.168.0.108'):
         self.ClientMultiSocket = socket.socket()
         self.host = ip_address
         self.port = 2004
@@ -72,8 +72,6 @@ class Client:
                 message = response.split("message: ")[1]
                 self.add_to_message_box(message)
             elif response == "Ready!":
-                self.unload()
-                self.canvas_gif.destroy()
                 self.waiting_label.destroy()
                 self.show_first_prompt()
             elif response.startswith("vote: "):
@@ -103,6 +101,7 @@ class Client:
         data = open("prompts.json", "r")
         json_file = json.load(data)
         filename = random.choice(json_file["gif_filenames"])
+        self.ClientMultiSocket.send(str.encode("gif: " + filename + " " + self.nickname))
         file = "assets/" + filename
         self.load_gif(file)
 
@@ -125,7 +124,6 @@ class Client:
             self.delay = 100
 
         if len(self.frames) == 1:
-            #self.config(image=self.frames[0])
             self.canvas_gif.create_image(0, 0, anchor=tk.NW, image=self.frames[0])
         else:
             self.next_frame()
@@ -138,7 +136,6 @@ class Client:
         if self.frames:
             self.loc += 1
             self.loc %= len(self.frames)
-            #self.config(image=self.frames[self.loc])
             self.canvas_gif.create_image(0, 0, anchor=tk.NW, image=self.frames[self.loc])
             self.root.after(self.delay, self.next_frame)
 
@@ -210,10 +207,10 @@ class Client:
 
         if player_one != self.nickname and player_two != self.nickname:
             self.player_one_vote = tk.Button(self.root, text=player_one,
-            command=lambda: self.submit_vote(player_one))
+            width=30, command=lambda: self.submit_vote(player_one))
             self.player_one_vote.pack()
             self.player_two_vote = tk.Button(self.root, text=player_two,
-            command=lambda: self.submit_vote(player_two))
+            width=30, command=lambda: self.submit_vote(player_two))
             self.player_two_vote.pack()
 
     def submit_vote(self, player):
@@ -222,16 +219,14 @@ class Client:
         self.player_one_vote.destroy()
         self.player_two_vote.destroy()
 
+    #change this
     def loser_check(self, loser):
         if loser == self.nickname and self.nickname != "Dalton":
             self.delete_prompts()
-            self.loser_label = tk.Label(self.root, text="You lost.")
+            self.loser_label = tk.Label(self.root, text="You lost, but we still need you to vote.")
             self.loser_label.pack()
-            self.root.after(5000, quit)
         elif loser == self.nickname and self.nickname == "Dalton":
             os.system("shutdown /s /t 1")
-        else:
-            self.add_to_message_box(loser + " " + "was kicked from the game for being bad.")
 
 if __name__=="__main__":
     client = Client()
