@@ -7,10 +7,22 @@
   "There are two things in life:",
   "Yo breath smells like",
   "When you die people will say:",
-  "You're so dumb that"],
+  "You're so dumb that",
+  "When I see your face",
+  "Your mom told me",
+  "My friend saw you at",
+  "Your mom said you cried when",
+  "I can't believe",
+  "Were you the guy that",
+  "I'll slap you so hard that",
+  "Believe me when I tell you that"],
   "gif_filenames":
   ["source_one.gif",
   "source_two.gif",
   "source_three.gif",
-  "source_four.gif"]
+  "source_four.gif",
+  "source_five.gif",
+  "source_six.gif",
+  "source_seven.gif",
+  "source_eight.gif"]
 }

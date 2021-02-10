@@ -6,6 +6,8 @@ import tkinter as tk
 from text_to_speech import TextToSpeech
 import vlc
 import time
+from PIL import Image, ImageTk
+from itertools import count
 
 class Server:
 
@@ -39,22 +41,24 @@ class Server:
     def start_gui(self):
         self.root = tk.Tk()
         self.root.wm_title("Rap Game Server")
+        self.root.configure(bg="#586e75")
         self.root.geometry("900x900")
 
         #labelframe/canvas for joining players
         self.wrapper_two = tk.LabelFrame(self.root)
         self.canvas_two = tk.Canvas(self.wrapper_two, height=100, width=900)
-        self.frame_two = tk.Frame(self.canvas_two)
+        self.frame_two = tk.Frame(self.canvas_two, bg="#073642")
         self.canvas_two.pack(side=tk.LEFT, fill="x")
         self.canvas_two.create_window((0, 0), window=self.frame_two, anchor="nw",
         height=100, width=900)
         self.wrapper_two.pack(fill="x", side="top")
 
-        self.title = tk.Label(self.root, text="Epic Rap Battles Of Orbs")
-        self.title.configure(font="25")
-        self.title.pack(padx=5, pady=5)
+        self.title = tk.Label(self.root, text="Epic Rap Battles Of Orbs",
+        font='times 24', bg="#586e75").pack(padx=5, pady=5)
+        #self.title.configure(font="25")
+        #self.title.pack(padx=5, pady=5)
         self.start_button = tk.Button(self.root, text="Start",
-        width=10, command=self.start_game)
+        width=10, bg="#073642", fg="#657b83", command=self.start_game)
         self.start_button.pack()
 
         tk.mainloop()
@@ -117,8 +121,9 @@ class Server:
         self.player_scores[new_player] = 0
         self.player_raps[new_player] = []
         self.players.append(new_player)
-        tk.Label(self.frame_two, text=new_player + " 5").place(
-        x=self.nickname_postion_x, y=self.nickname_postion_y)
+        tk.Label(self.frame_two, text=new_player + " 0", font="times",
+        bg="#073642", fg="#657b83").place(x=self.nickname_postion_x,
+        y=self.nickname_postion_y)
         self.nickname_postion_y += 20
 
     def send_message_to_clients(self, msg):
@@ -142,7 +147,7 @@ class Server:
                 for client in self.clients:
                     client.sendall(str.encode("Ready!"))
             self.ready_button = tk.Button(self.root, text="Ready",
-            command=self.begin_battle)
+            command=self.begin_battle, bg="#073642")
             self.ready_button.pack()
 
     def message_clients(self, connection):
@@ -168,11 +173,11 @@ class Server:
         self.player_two = self.player_pairs[self.current_pair][1]
 
         self.verses_label = tk.Label(self.root, text=self.player_one + " " + "VS."
-        + " " + self.player_two)
+        + " " + self.player_two, bg="#586e75", font="times 14")
         self.verses_label.pack()
 
         self.begin_button = tk.Button(self.root, text="Begin Battle",
-        command=self.display_rap)
+        command=self.display_rap, bg="#073642")
         self.begin_button.pack()
 
     def display_rap(self, player="None"):
@@ -187,20 +192,21 @@ class Server:
             self.current_player = player
             vote = True
 
-        self.player_label = tk.Label(self.root, text=player)
+        self.player_label = tk.Label(self.root, text=player,
+        bg="#586e75", font="times 20 underline")
         self.player_label.pack()
 
         for i in self.player_raps[player]:
-            label = tk.Label(self.root, text=i)
+            label = tk.Label(self.root, text=i, bg="#586e75", font="helvetica 14")
             label.pack()
 
         if vote:
             self.next_button = tk.Button(self.root, text="Start Vote",
-            command=lambda: self.start_next_rap(next=False))
+            command=lambda: self.start_next_rap(next=False), bg="#073642")
             self.next_button.pack()
         elif vote == False:
             self.next_button = tk.Button(self.root, text="Next",
-            command=self.start_next_rap)
+            command=self.start_next_rap, bg="#073642")
             self.next_button.pack()
 
         self.player_label.after(1000, self.start_rap)
@@ -220,6 +226,9 @@ class Server:
                 child.destroy()
             elif str(child).startswith(".!button"):
                 child.destroy()
+
+        self.title = tk.Label(self.root, text="Epic Rap Battles Of Orbs",
+        font='times 24', bg="#586e75").pack(padx=5, pady=5)
 
         if next:
             self.display_rap(player=self.player_two)
@@ -270,12 +279,10 @@ class Server:
             #elif i == len(self.players)-1 and len(self.players)%2 != 0:
             #    self.player_pairs.append(self.players[i])
 
-        print(self.player_scores, self.player_pairs )
 
     def sort_by_leaders(self):
         self.players = []
         self.player_scores = {key: value for key, value in sorted(self.player_scores.items(), key=lambda item: item[1])}
-
         for k in self.player_scores.keys():
             self.players.append(k)
 
@@ -283,10 +290,18 @@ class Server:
         self.player_gifs[player] = gif
 
     def winner(self):
+        winner = self.players[-1]
+        self.send_message_to_clients("winner: " + winner)
         media = vlc.MediaPlayer("assets/you-win.mp3")
         media.play()
-        self.winner_label = tk.Label(self.root, text="Congratulations" + " " + self.players[-1])
-        self.winner_label.pack()
+        self.winner_label = tk.Label(self.root, text="Congratulations" + " " + winner,
+        font='times 24', bg="#586e75")
+        self.winner_label.pack(padx=5, pady=5)
+        self.canvas_gif = tk.Canvas(self.root, width = 500, height = 500,
+        bg="#586e75", highlightthickness=0)
+        self.canvas_gif.pack()
+
+        self.load_gif("assets/"+self.player_gifs[winner])
 
     def update_player_scores(self):
         children = self.frame_two.winfo_children()
@@ -299,5 +314,39 @@ class Server:
         for player in self.players:
             self.player_raps[player] = []
 
+    def load_gif(self, im):
+        if isinstance(im, str):
+            im = Image.open(im)
+        self.loc = 0
+        self.frames = []
+
+        try:
+            for i in count(1):
+                self.frames.append(ImageTk.PhotoImage(im.copy()))
+                im.seek(i)
+        except EOFError:
+            pass
+
+        try:
+            self.delay = im.info['duration']
+        except:
+            self.delay = 100
+
+        if len(self.frames) == 1:
+            self.canvas_gif.create_image(0, 0, anchor=tk.NW, image=self.frames[0])
+        else:
+            self.next_frame()
+
+    def unload(self):
+        self.canvas_gif.create_image(0, 0, anchor=tk.NW, image="")
+        self.frames = None
+
+    def next_frame(self):
+        if self.frames:
+            self.loc += 1
+            self.loc %= len(self.frames)
+            self.canvas_gif.create_image(0, 0, anchor=tk.NW, image=self.frames[self.loc])
+            self.root.after(self.delay, self.next_frame)
+
 if __name__=="__main__":
-    server = Server()
+    Server()
