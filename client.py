@@ -9,7 +9,7 @@ import os
 
 class Client:
 
-    def __init__(self, ip_address='192.168.0.108'):
+    def __init__(self, ip_address):
         self.ClientMultiSocket = socket.socket()
         self.host = ip_address
         self.port = 2004
@@ -237,6 +237,3 @@ class Client:
             self.loser_label = tk.Label(self.root, text="You lose.",
             font='times 24', bg="#586e75")
             self.loser_label.pack()
-
-if __name__=="__main__":
-    Client()
